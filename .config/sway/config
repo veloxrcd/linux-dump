@@ -1,0 +1,176 @@
+# ==============================================================================
+# SWAYFX MONOCHROME CONFIG
+# ==============================================================================
+
+# --- Variables ---
+set $mod Mod4 
+set $term foot 
+set $filemanager thunar
+set $browser firefox 
+set $menu rofi -show drun 
+set $emoji rofimoji 
+set $power_menu ~/.config/rofi/powermenu.sh 
+
+# --- Autostart Background, Bar & Resilient Pipewire ---
+exec_always pkill swaybg; swaybg -i ~/Downloads/1383009.jpg
+exec_always pkill waybar; waybar &
+exec_always pkill autotiling; autotiling &
+exec_always pkill rot8; rot8 &
+exec_always pkill gentoo-pipewire-launcher; gentoo-pipewire-launcher restart &
+
+# --- Touchpad Configuration ---
+input "type:touchpad" {
+    dwt enabled
+    tap enabled
+    natural_scroll disabled
+    middle_emulation enabled
+    pointer_accel 0.25
+    accel_profile adaptive
+    scroll_factor 1.0
+}
+
+# --- Gestures ---
+bindgesture swipe:right workspace prev
+bindgesture swipe:left workspace next
+bindgesture swipe:up fullscreen toggle
+bindgesture swipe:down floating toggle
+
+# --- Window Decor & Borders ---
+floating_modifier $mod normal
+default_border pixel 1 
+default_floating_border pixel 1 
+smart_borders on 
+smart_gaps on 
+
+gaps inner 8 
+gaps top 2 
+gaps bottom 2 
+gaps left 4 
+gaps right 4 
+
+# --- SwayFX Aesthetics & Animations ---
+corner_radius 10 
+
+shadows enable 
+shadow_color #000000e6
+shadow_blur_radius 12
+
+blur enable 
+blur_passes 3 
+blur_radius 4 
+
+animation_duration_ms 150
+
+# --- Monochrome Theme Colors ---
+# Class                 Border  Background Text     Indicator Child-Border
+client.focused          #ffffff #0b0b0b    #ffffff  #ffffff   #ffffff 
+client.focused_inactive #222222 #0b0b0b    #888888  #222222   #222222 
+client.unfocused        #111111 #0b0b0b    #555555  #111111   #111111 
+client.urgent           #ffffff #222222    #ffffff  #ffffff   #ffffff 
+client.placeholder      #000000 #0c0c0c    #ffffff  #000000   #000000 
+
+# --- Keybindings: Apps ---
+bindsym $mod+Return exec $term 
+bindsym $mod+e exec $filemanager 
+bindsym $mod+w exec $browser 
+bindsym $mod+d exec $menu 
+bindsym $mod+period exec $emoji 
+bindsym $mod+Escape exec $power_menu 
+bindsym $mod+q kill 
+bindsym $mod+Shift+c reload 
+bindsym $mod+Shift+q exec swaynag -t warning -m "Exit Sway?" -B "Yes" "swaymsg exit" 
+
+# --- Keybindings: Navigation ---
+bindsym $mod+h focus left 
+bindsym $mod+j focus down 
+bindsym $mod+k focus up 
+bindsym $mod+l focus right 
+
+bindsym $mod+Shift+h move left 
+bindsym $mod+Shift+j move down 
+bindsym $mod+Shift+k move up 
+bindsym $mod+Shift+l move right 
+
+# --- Keybindings: Layout & Focus ---
+bindsym $mod+p splith 
+bindsym $mod+v splitv 
+bindsym $mod+f fullscreen toggle 
+bindsym $mod+a focus parent 
+bindsym $mod+Shift+space floating toggle
+bindsym $mod+Tab focus mode_toggle
+
+# --- Scratchpad ---
+bindsym $mod+Shift+minus move scratchpad
+bindsym $mod+minus scratchpad show
+
+# --- Workspaces ---
+bindsym $mod+1 workspace number 1
+bindsym $mod+2 workspace number 2
+bindsym $mod+3 workspace number 3
+bindsym $mod+4 workspace number 4
+bindsym $mod+5 workspace number 5
+bindsym $mod+6 workspace number 6
+bindsym $mod+7 workspace number 7
+bindsym $mod+8 workspace number 8
+bindsym $mod+9 workspace number 9
+bindsym $mod+0 workspace number 10
+
+bindsym $mod+Shift+1 move container to workspace number 1
+bindsym $mod+Shift+2 move container to workspace number 2
+bindsym $mod+Shift+3 move container to workspace number 3
+bindsym $mod+Shift+4 move container to workspace number 4
+bindsym $mod+Shift+5 move container to workspace number 5
+bindsym $mod+Shift+6 move container to workspace number 6
+bindsym $mod+Shift+7 move container to workspace number 7
+bindsym $mod+Shift+8 move container to workspace number 8
+bindsym $mod+Shift+9 move container to workspace number 9
+bindsym $mod+Shift+0 move container to workspace number 10
+
+# --- Smooth Resize Mode ---
+mode "resize" {
+    # Precision steps (5px)
+    bindsym h resize shrink width 5 px
+    bindsym j resize grow height 5 px
+    bindsym k resize shrink height 5 px
+    bindsym l resize grow width 5 px
+
+    # Fast steps (20px)
+    bindsym Shift+h resize shrink width 20 px
+    bindsym Shift+j resize grow height 20 px
+    bindsym Shift+k resize shrink height 20 px
+    bindsym Shift+l resize grow width 20 px
+
+    # Arrow key support
+    bindsym Left resize shrink width 5 px
+    bindsym Down resize grow height 5 px
+    bindsym Up resize shrink height 5 px
+    bindsym Right resize grow width 5 px
+
+    bindsym Return mode "default"
+    bindsym Escape mode "default"
+}
+bindsym $mod+r mode "resize"
+
+# Live window resizing via mouse/trackpad (Mod + Right Click)
+bindsym $mod+button3 floating toggle
+
+# --- Hardware Keys ---
+bindsym XF86AudioMute exec wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
+bindsym XF86AudioLowerVolume exec wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
+bindsym XF86AudioRaiseVolume exec wpctl set-volume -l 1.5 @DEFAULT_AUDIO_SINK@ 5%+
+bindsym XF86AudioMicMute exec wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
+
+bindsym XF86MonBrightnessDown exec brightnessctl set 5%- 
+bindsym XF86MonBrightnessUp exec brightnessctl set 5%+ 
+
+# --- Screenshots ---
+bindsym Print exec grim -g "$(slurp)" - | tee ~/Pictures/Screenshot_$(date +"%Y-%m-%d_%H-%M-%S").png | wl-copy 
+bindsym Shift+Print exec grim - | tee ~/Pictures/Screenshot_$(date +"%Y-%m-%d_%H-%M-%S").png | wl-copy 
+
+# --- Window Rules ---
+for_window [app_id=".*"] title_format "%title" 
+for_window [app_id=".*"] dim_inactive 0.12
+for_window [app_id="pavucontrol"] floating enable, resize set 650 400
+for_window [app_id="blueman-manager"] floating enable, resize set 600 400
+for_window [app_id="thunar"] floating enable, resize set 900 600
+for_window [app_id="rofimoji"] floating enable, resize set 500 400
