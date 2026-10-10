@@ -1,0 +1,179 @@
+#!/usr/bin/env python3
+"""
+roblox (aka voidstrap-scroll-jump.py)
+
+Launches Voidstrap/Sober and turns "scroll wheel down" into
+rapid jump presses while it's running, by talking to the kernel input
+layer directly via /dev/uinput and /dev/input/eventN.
+"""
+
+import json
+import os
+import shutil
+import subprocess
+import sys
+import threading
+import time
+
+try:
+    import evdev
+    from evdev import ecodes
+except ImportError:
+    sys.exit("[roblox-macro] python3 'evdev' module not found. Install 'python-evdev'.")
+
+# ---- config ---------------------------------------------------------------
+
+JUMP_KEY = ecodes.KEY_SPACE
+JUMPS_PER_TICK = 3
+JUMP_GAP = 0.06
+MOUSE_DEVICE = os.environ.get("MOUSE_DEVICE", "")
+SCROLL_DOWN_SIGN = "negative"
+
+# ---- helpers ---------------------------------------------------------------
+
+
+def find_mouse_device():
+    if MOUSE_DEVICE:
+        return evdev.InputDevice(MOUSE_DEVICE)
+
+    candidates = []
+    for path in evdev.list_devices():
+        try:
+            dev = evdev.InputDevice(path)
+        except (PermissionError, OSError):
+            continue
+        caps = dev.capabilities()
+        if ecodes.REL_WHEEL in caps.get(ecodes.EV_REL, []):
+            candidates.append(dev)
+
+    if not candidates:
+        return None
+
+    for dev in candidates:
+        if ecodes.BTN_LEFT in dev.capabilities().get(ecodes.EV_KEY, []):
+            return dev
+    return candidates[0]
+
+
+def make_virtual_keyboard():
+    return evdev.UInput({ecodes.EV_KEY: [JUMP_KEY]}, name="voidstrap-scroll-jump-kbd")
+
+
+def jump_burst(ui):
+    for _ in range(JUMPS_PER_TICK):
+        ui.write(ecodes.EV_KEY, JUMP_KEY, 1)
+        ui.syn()
+        time.sleep(0.02)
+        ui.write(ecodes.EV_KEY, JUMP_KEY, 0)
+        ui.syn()
+        time.sleep(JUMP_GAP)
+
+
+def is_scroll_down(value):
+    if SCROLL_DOWN_SIGN == "negative":
+        return value < 0
+    return value > 0
+
+
+def launch_roblox_app():
+    """Dynamically resolves system binaries (Voidstrap, Sober, or Flatpak)."""
+    # 1. Search system PATH for native executables
+    for binary_name in ["voidstrap", "Voidstrap", "sober"]:
+        binary_path = shutil.which(binary_name)
+        if binary_path:
+            print(f"[roblox-macro] Launching native binary: {binary_path}")
+            return subprocess.Popen([binary_path])
+
+    # 2. Check installed Flatpaks if available
+    flatpak_path = shutil.which("flatpak")
+    if flatpak_path:
+        for app_id in ["org.vinegarhq.Sober", "io.github.mrvain.voidstrap", "io.github.klobraticc.voidstrap"]:
+            res = subprocess.run(["flatpak", "info", app_id], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            if res.returncode == 0:
+                print(f"[roblox-macro] Launching Flatpak: {app_id}")
+                return subprocess.Popen(["flatpak", "run", app_id])
+
+    sys.exit("[roblox-macro] Could not find any active executable or installed Flatpak for Roblox/Voidstrap/Sober.")
+
+
+def watch_for_close(app_proc):
+    """Monitors process exit and swaymsg IPC window-close events."""
+    swaymsg = shutil.which("swaymsg")
+    sway = None
+
+    if swaymsg and os.environ.get("SWAYSOCK"):
+        try:
+            sway = subprocess.Popen(
+                [swaymsg, "-t", "subscribe", "-m", '["window"]'],
+                stdout=subprocess.PIPE,
+                text=True,
+            )
+        except Exception:
+            sway = None
+
+    while True:
+        if app_proc.poll() is not None:
+            print("[roblox-macro] Process exited, ending macro")
+            os._exit(0)
+
+        if sway is not None:
+            line = sway.stdout.readline()
+            if not line:
+                continue
+            try:
+                event = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            
+            container_app = str(event.get("container", {}).get("app_id", "")).lower()
+            if (
+                event.get("change") == "close"
+                and any(k in container_app for k in ["voidstrap", "sober", "roblox"])
+            ):
+                print("[roblox-macro] Window closed, ending macro")
+                os._exit(0)
+        else:
+            time.sleep(0.5)
+
+
+# ---- main -------------------------------------------------------------
+
+
+def main():
+    mouse = find_mouse_device()
+    if mouse is None:
+        sys.exit(
+            "[roblox-macro] couldn't auto-detect a mouse device.\n"
+            "  Run: python3 -c \"import evdev; "
+            "[print(d.path, d.name) for d in evdev.list_devices()]\"\n"
+            "  then set MOUSE_DEVICE=/dev/input/eventN before running this script."
+        )
+    print(f"[roblox-macro] using mouse device: {mouse.path} ({mouse.name})")
+
+    try:
+        ui = make_virtual_keyboard()
+    except PermissionError:
+        sys.exit(
+            "[roblox-macro] permission denied opening /dev/uinput or input events.\n"
+            "  Run with 'doas roblox' or ensure your user is in the 'input' group."
+        )
+
+    app_proc = launch_roblox_app()
+
+    watcher = threading.Thread(target=watch_for_close, args=(app_proc,), daemon=True)
+    watcher.start()
+
+    print("[roblox-macro] scroll-down -> jump active")
+    try:
+        for event in mouse.read_loop():
+            if event.type == ecodes.EV_REL and event.code == ecodes.REL_WHEEL:
+                if is_scroll_down(event.value):
+                    threading.Thread(target=jump_burst, args=(ui,), daemon=True).start()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        ui.close()
+
+
+if __name__ == "__main__":
+    main()
