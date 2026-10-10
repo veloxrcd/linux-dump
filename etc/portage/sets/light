@@ -1,0 +1,14 @@
+gui-apps/foot
+app-text/zathura
+app-text/zathura-pdf-mupdf
+media-video/mpv
+media-video/ffmpeg
+app-editors/neovim
+app-editors/nano
+app-misc/pfetch
+app-misc/fastfetch
+games-misc/cowsay
+app-misc/cmatrix
+sys-process/btop
+app-misc/jq
+sys-apps/bat
