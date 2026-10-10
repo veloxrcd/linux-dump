@@ -1,0 +1,9 @@
+@-moz-document url("about:home"), url("about:newtab") {
+    body,
+    #root,
+    #root > div,
+    .outer-wrapper {
+        background: transparent !important;
+        background-color: transparent !important;
+    }
+}
